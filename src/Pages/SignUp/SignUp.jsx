@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 
 import { useContext } from "react";
 import { Helmet } from "react-helmet-async";
@@ -5,10 +6,14 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../Provider/AuthProvider";
 import Swal from "sweetalert2";
+import useAxiosPublic from "../../Hooks/useAxiosPublic";
+import SocialLogin from "../../Components/SocialLogin/SocialLogin";
 
 
 
 const SignUp = () => {
+
+    const axiosPublic = useAxiosPublic()
 
     const { register, handleSubmit, reset, formState: { errors }, } = useForm()
     const { createUser, updateUserProfile } = useContext(AuthContext)
@@ -20,16 +25,27 @@ const SignUp = () => {
                 console.log(result.user)
                 updateUserProfile(data.name, data.photo)
                     .then(result => {
-                        console.log(result)
-                        reset()
-                        Swal.fire({
-                            position: "top-end",
-                            icon: "success",
-                            title: "User created successfully",
-                            showConfirmButton: false,
-                            timer: 1500
-                        })
-                        navigate('/')
+                        //send user info to the database
+                        const userInfo = {
+                            name: data.name,
+                            email: data.email,
+                        }
+                        axiosPublic.post('/users', userInfo)
+                            .then(res => {
+                                if (res.data.insertedId) {
+                                    console.log('user added to the database')
+                                    reset()
+                                    Swal.fire({
+                                        position: "top-end",
+                                        icon: "success",
+                                        title: "User created successfully",
+                                        showConfirmButton: false,
+                                        timer: 1500
+                                    })
+                                    navigate('/')
+                                }
+                            })
+
                     })
                     .catch(err => {
                         console.log(err)
@@ -92,7 +108,8 @@ const SignUp = () => {
                                 <input type="submit" value="Sign Up" className="btn btn-primary" />
                             </div>
                         </form>
-                        <p><small>Already have an account? <Link to='/login'>Login</Link></small></p>
+                        <p className=" px-6"><small>Already have an account? <Link to='/login'>Login</Link></small></p>
+                        <SocialLogin></SocialLogin>
                     </div>
                 </div>
             </div>
