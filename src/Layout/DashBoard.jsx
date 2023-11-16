@@ -1,11 +1,13 @@
 import { FaAd, FaBook, FaCalendar, FaHome, FaList, FaSearch, FaShoppingCart, FaUsers, FaUtensils, FaVoicemail } from "react-icons/fa";
 import { NavLink, Outlet } from "react-router-dom";
+import useAdmin from "../Hooks/useAdmin";
 
 
 const DashBoard = () => {
 
     //get admin value from the database
-    const isAdmin = true
+    const [isAdmin] = useAdmin()
+    console.log(isAdmin)
 
     return (
         <div className="flex">
