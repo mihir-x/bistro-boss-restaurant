@@ -3,66 +3,71 @@ import { useEffect, useState } from "react";
 import useAxiosSecure from "../../../Hooks/useAxiosSecure";
 import useCart from "../../../Hooks/useCart";
 import useAuth from "../../../Hooks/useAuth";
+import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 
 
 const CheckOutForm = () => {
     const [error, setError] = useState('')
     const [clientSecret, setClientSecret] = useState('')
     const [transactionID, setTransactionID] = useState('')
-    const {user} = useAuth()
+    const { user } = useAuth()
     const stripe = useStripe()
     const elements = useElements()
     const axiosSecure = useAxiosSecure()
-    const [cart] = useCart()
-    const totalPrice = cart.reduce((total, item)=> total + item.price, 0)
+    const [cart, refetch] = useCart()
+    const totalPrice = cart.reduce((total, item) => total + item.price, 0)
+    const navigate = useNavigate()
 
-    useEffect(()=>{
-        axiosSecure.post('/create-payment-intent', {price: totalPrice})
-        .then(res => {
-            console.log(res.data.clientSecret)
-            setClientSecret(res.data.clientSecret)
-        })
-    },[axiosSecure, totalPrice])
+    useEffect(() => {
+        if (totalPrice > 0) {
+            axiosSecure.post('/create-payment-intent', { price: totalPrice })
+                .then(res => {
+                    console.log(res.data.clientSecret)
+                    setClientSecret(res.data.clientSecret)
+                })
+        }
+    }, [axiosSecure, totalPrice])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        if(!stripe || !elements){
-            return 
+        if (!stripe || !elements) {
+            return
         }
 
         const card = elements.getElement(CardElement)
-        if(card === null){
+        if (card === null) {
             return
         }
-        const {error, paymentMethod} = await stripe.createPaymentMethod({
+        const { error, paymentMethod } = await stripe.createPaymentMethod({
             type: 'card',
             card,
         })
-        if(error){
+        if (error) {
             console.log('Payment error: ', error)
             setError(error.message)
         }
-        else{
+        else {
             console.log('Payment Method: ', paymentMethod)
             setError('')
         }
 
         //confirm payment
-        const { paymentIntent, error: confirmError} = await stripe.confirmCardPayment(clientSecret, {
+        const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret, {
             payment_method: {
                 card: card,
-                billing_details:{
+                billing_details: {
                     email: user?.email || 'anonymous',
                     name: user?.displayName || 'anonymous',
                 }
             }
         })
-        if(confirmError){
+        if (confirmError) {
             console.log('confirm error: ', confirmError.message)
         }
-        else{
-            console.log('Payment intent: ',paymentIntent)
-            if(paymentIntent.status === 'succeeded'){
+        else {
+            console.log('Payment intent: ', paymentIntent)
+            if (paymentIntent.status === 'succeeded') {
                 console.log('Payment successful. Your transaction ID: ', paymentIntent.id)
                 setTransactionID(paymentIntent.id)
                 //now save the payment in the database
@@ -76,7 +81,18 @@ const CheckOutForm = () => {
                     status: 'pending',
                 }
                 const res = await axiosSecure.post('/payments', payment)
-                console.log('payment saved: ',res)
+                console.log('payment saved: ', res)
+                refetch()
+                if (res.data?.paymentResult?.insertedId) {
+                    Swal.fire({
+                        position: "top-end",
+                        icon: "success",
+                        title: "Thank you for your payment",
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                    navigate('/dashboard/paymentHistory')
+                }
             }
         }
     }
